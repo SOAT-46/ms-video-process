@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:17.4-alpine3.21
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: videos
+    ports:
+      - "5432:5432"
+    networks:
+      - soatnet
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566" # Porta principal de todos os serviços
+    environment:
+      - SERVICES=s3,dynamodb
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - soatnet
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  ms-video:
+    container_name: ms-video
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgres
+      - localstack
+    networks:
+      - soatnet
+
+volumes:
+  postgres_data:
+
+networks:
+  soatnet:
+    driver: bridge
