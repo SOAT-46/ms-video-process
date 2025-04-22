@@ -3,43 +3,46 @@ package com.fiap.videos.service;
 import com.fiap.videos.util.VideoUtils;
 import com.fiap.videos.util.ZipUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.util.UUID;
 
 @Service
 public class VideoProcessingService {
 
     private static final String TEMP_DIR = "temp";
+    private static final String VIDEO_API_URL = "http://localhost:8081/api/videos/saveStatus/";
 
-    public String processVideos(List<MultipartFile> videos) throws IOException {
-        String id = UUID.randomUUID().toString();
-        String dirPath = TEMP_DIR + "/" + id;
-        File dir = new File(dirPath);
-        if (!dir.exists()) {
+    public void processVideo(MultipartFile video, Long videoId, Long userId) {
+        try {
+            updateStatus(videoId, "PROCESSANDO");
+
+            String id = UUID.randomUUID().toString();
+            File dir = new File(TEMP_DIR + "/" + id);
             dir.mkdirs();
-        }
 
-        for (MultipartFile video : videos) {
-            String originalFilename = video.getOriginalFilename();
-            if (originalFilename == null) {
-                originalFilename = "video_" + UUID.randomUUID() + ".mp4";
-            }
-            File videoFile = new File(dir, originalFilename);
+            File videoFile = new File(dir, video.getOriginalFilename());
             video.transferTo(videoFile);
 
-            String outputImagePath = new File(dir, "imagem_" + originalFilename + ".jpg").getAbsolutePath();
+            String outputImagePath = new File(dir, "imagem_" + video.getOriginalFilename() + ".jpg").getAbsolutePath();
             VideoUtils.extractFrame(videoFile.getAbsolutePath(), outputImagePath, 1);
+
+            File zipFile = new File(TEMP_DIR + "/" + id + ".zip");
+            ZipUtils.zipDirectory(dir, zipFile);
+
+            updateStatus(videoId, "FINALIZADO");
+            deleteDirectoryRecursively(dir);
+
+        } catch (Exception e) {
+            updateStatus(videoId, "ERRO");
         }
+    }
 
-        String zipPath = TEMP_DIR + "/" + id + ".zip";
-        File zipFile = new File(zipPath);
-        ZipUtils.zipDirectory(dir, zipFile);
-
-        deleteDirectoryRecursively(dir);
-
-        return zipPath;
+    private void updateStatus(Long videoId, String status) {
+        RestTemplate restTemplate = new RestTemplate();
+        restTemplate.put(VIDEO_API_URL + videoId, "\"" + status + "\"");
     }
 
     private void deleteDirectoryRecursively(File directory) {

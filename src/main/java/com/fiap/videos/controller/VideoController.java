@@ -21,9 +21,13 @@ public class VideoController {
     private VideoProcessingService processingService;
 
     @PostMapping("/upload")
-    public ResponseEntity<String> uploadVideos(@RequestParam("files") List<MultipartFile> files) throws IOException {
-        processingService.processVideos(files);
-        return ResponseEntity.ok("Vídeos enfileirados para processamento");
+    public ResponseEntity<String> uploadVideo(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("videoId") Long videoId,
+            @RequestParam("userId") Long userId) {
+
+        processingService.processVideo(file, videoId, userId);
+        return ResponseEntity.ok("Vídeo enviado e sendo processado.");
     }
 
     @GetMapping("/download/{fileName}")
